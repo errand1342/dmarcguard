@@ -64,61 +64,7 @@ archives:
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
 
-#changelog:
-#  filters:
-#    exclude:
-#      - "^docs:"
-#      - "^test:"
-#      - "^ci:"
-#      - "^chore:"
-#      - merge conflict
-#      - Merge pull request
-#      - Merge remote-tracking branch
-#      - Merge branch
-#  groups:
-#    - order: 0
-#      regexp: ^.*?feat(\([[:word:]]+\))??!?:.+$
-#      title: Features
-#    - order: 1
-#      regexp: ^.*?fix(\([[:word:]]+\))??!?:.+$
-#      title: Bug fixes
-#    - order: 2
-#      regexp: ^.*?perf(\([[:word:]]+\))??!?:.+$
-#      title: Performance improvements
-#    - order: 999
-#      title: Others
-#  sort: asc
-#  use: github
-
 dist: .goreleaser-dist
-
-#release:
-#  draft: false
-#  prerelease: auto
-#  header: |
-#    ## What's Changed
-#
-#    This release includes the following changes:
-#  footer: |
-#    ## Docker Images
-#
-#    ```bash
-#    docker pull ghcr.io/meysam81/{{ .ProjectName }}:v{{ .Version }}
-#    ```
-#
-#    **Full Changelog**: https://github.com/meysam81/{{ .ProjectName }}/compare/{{ .PreviousTag }}...{{ .Tag }}
-
-#binary_signs:
-#  - args:
-#      - sign-blob
-#      - "--output-signature=${signature}"
-#      - "--output-certificate=${certificate}"
-#      - ${artifact}
-#      - "--yes"
-#    certificate: ${artifact}_{{- tolower .Os }}_{{- if eq .Arch "386" }}i386{{- else }}{{ .Arch }}{{ end }}{{- if .Arm }}v{{ .Arm }}{{ end }}.0 0 * * *pem
-#    cmd: cosign
-#    output: false
-#    signature: ${artifact}_{{- tolower .Os }}_{{- if eq .Arch "386" }}i386{{- else }}{{ .Arch }}{{ end }}{{- if .Arm }}v{{ .Arm }}{{ end }}.sig
 
 dockers_v2:
   - id: parse-dmarc
@@ -156,24 +102,24 @@ docker_digest:
   name_template: "digest.txt"
   disable: "{{ .Env.NO_DIGEST }}"
 
-mcp:
-  name: io.github.meysam81/parse-dmarc
-  title: Parse-DMARC MCP Server
-  description: "Lightweight DMARC parser: auto-fetch email reports, visualize compliance in a single all-in-one app"
-  homepage: https://github.com/meysam81/parse-dmarc
-  auth:
-    type: github-oidc
-  repository:
-    url: "https://github.com/meysam81/parse-dmarc.git"
-    source: github
-    id: "1089959979"
-  packages:
-    - registry_type: oci
-      identifier: "ghcr.io/meysam81/parse-dmarc-mcp:v{{ .Version }}"
-      transport:
-        type: stdio
-  # TODO: the server requires a config to run and I currently don't know how!
-  disable: true
+# TODO: the server requires a config to run and I currently don't know how!
+# mcp:
+#   name: io.github.meysam81/parse-dmarc
+#   title: Parse-DMARC MCP Server
+#   description: "Lightweight DMARC parser: auto-fetch email reports, visualize compliance in a single all-in-one app"
+#   homepage: https://github.com/meysam81/parse-dmarc
+#   auth:
+#     type: github-oidc
+#   repository:
+#     url: "https://github.com/meysam81/parse-dmarc.git"
+#     source: github
+#     id: "1089959979"
+#   packages:
+#     - registry_type: oci
+#       identifier: "ghcr.io/meysam81/parse-dmarc-mcp:v{{ .Version }}"
+#       transport:
+#         type: stdio
+#   disable: true
 
 report_sizes: true
 
