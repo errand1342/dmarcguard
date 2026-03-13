@@ -81,8 +81,14 @@ type Attachment struct {
 	Data     []byte
 }
 
+// FetchResult holds the fetched reports and the message sequence numbers
+type FetchResult struct {
+	Reports    []Report
+	MessageIDs []uint32
+}
+
 // FetchDMARCReports fetches DMARC reports from the mailbox
-func (c *Client) FetchDMARCReports() ([]Report, error) {
+func (c *Client) FetchDMARCReports() (*FetchResult, error) {
 	// Select mailbox
 	mbox, err := c.client.Select(c.config.Mailbox, false)
 	if err != nil {
@@ -91,7 +97,7 @@ func (c *Client) FetchDMARCReports() ([]Report, error) {
 
 	if mbox.Messages == 0 {
 		c.log.Info().Msg("no messages in mailbox")
-		return []Report{}, nil
+		return &FetchResult{}, nil
 	}
 
 	// Search for unseen messages
@@ -105,7 +111,7 @@ func (c *Client) FetchDMARCReports() ([]Report, error) {
 
 	if len(ids) == 0 {
 		c.log.Info().Msg("no new messages found")
-		return []Report{}, nil
+		return &FetchResult{}, nil
 	}
 
 	c.log.Info().Int("count", len(ids)).Msg("found new messages")
@@ -123,9 +129,12 @@ func (c *Client) FetchDMARCReports() ([]Report, error) {
 		done <- c.client.Fetch(seqSet, items, messages)
 	}()
 
-	reports := []Report{}
+	var reports []Report
+	var messageIDs []uint32
 
 	for msg := range messages {
+		messageIDs = append(messageIDs, msg.SeqNum)
+
 		r := msg.GetBody(section)
 		if r == nil {
 			c.log.Warn().Uint32("uid", msg.Uid).Msg("server didn't return message body")
@@ -187,7 +196,7 @@ func (c *Client) FetchDMARCReports() ([]Report, error) {
 		return nil, fmt.Errorf("fetch failed: %w", err)
 	}
 
-	return reports, nil
+	return &FetchResult{Reports: reports, MessageIDs: messageIDs}, nil
 }
 
 // MarkAsSeen marks messages as seen
@@ -203,6 +212,40 @@ func (c *Client) MarkAsSeen(messageIDs []uint32) error {
 	flags := []interface{}{imap.SeenFlag}
 
 	return c.client.Store(seqSet, item, flags, nil)
+}
+
+// MoveMessages moves messages to a destination mailbox using COPY + DELETE + EXPUNGE
+func (c *Client) MoveMessages(messageIDs []uint32, destMailbox string) error {
+	if len(messageIDs) == 0 {
+		return nil
+	}
+
+	// Ensure destination mailbox exists (ignore error if it already exists)
+	if err := c.client.Create(destMailbox); err != nil {
+		c.log.Debug().Err(err).Str("mailbox", destMailbox).Msg("create mailbox (may already exist)")
+	}
+
+	seqSet := new(imap.SeqSet)
+	seqSet.AddNum(messageIDs...)
+
+	// Copy to destination mailbox
+	if err := c.client.Copy(seqSet, destMailbox); err != nil {
+		return fmt.Errorf("copy to %s: %w", destMailbox, err)
+	}
+
+	// Mark originals as deleted
+	item := imap.FormatFlagsOp(imap.AddFlags, true)
+	flags := []interface{}{imap.DeletedFlag}
+	if err := c.client.Store(seqSet, item, flags, nil); err != nil {
+		return fmt.Errorf("mark deleted: %w", err)
+	}
+
+	// Expunge deleted messages
+	if err := c.client.Expunge(nil); err != nil {
+		return fmt.Errorf("expunge: %w", err)
+	}
+
+	return nil
 }
 
 // isDMARCAttachment checks if filename is likely a DMARC report

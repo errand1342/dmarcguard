@@ -36,6 +36,9 @@ type IMAPConfig struct {
 	Password string `json:"password" env:"IMAP_PASSWORD"`
 	Mailbox  string `json:"mailbox" env:"IMAP_MAILBOX" envDefault:"INBOX"`
 	UseTLS   bool   `json:"use_tls" env:"IMAP_USE_TLS" envDefault:"true"`
+
+	MarkAsSeen       bool   `json:"mark_as_seen" env:"IMAP_MARK_AS_SEEN" envDefault:"true"`
+	ProcessedMailbox string `json:"processed_mailbox" env:"IMAP_PROCESSED_MAILBOX"`
 }
 
 // DatabaseConfig holds database configuration
@@ -150,6 +153,9 @@ func GenerateSample(path string) error {
 			Password: "your-password",
 			Mailbox:  "INBOX",
 			UseTLS:   true,
+
+			MarkAsSeen:       true,
+			ProcessedMailbox: "",
 		},
 		Database: DatabaseConfig{
 			Path: dbPath,

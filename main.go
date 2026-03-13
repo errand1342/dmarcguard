@@ -344,7 +344,7 @@ func fetchReports(cfg *config.Config, store *storage.Storage, m *metrics.Metrics
 	defer func() { _ = client.Disconnect() }()
 
 	// Fetch reports
-	reports, err := client.FetchDMARCReports()
+	result, err := client.FetchDMARCReports()
 	if err != nil {
 		if m != nil {
 			m.FetchErrors.Inc()
@@ -353,10 +353,10 @@ func fetchReports(cfg *config.Config, store *storage.Storage, m *metrics.Metrics
 	}
 
 	if m != nil {
-		m.ReportsFetched.Add(float64(len(reports)))
+		m.ReportsFetched.Add(float64(len(result.Reports)))
 	}
 
-	if len(reports) == 0 {
+	if len(result.Reports) == 0 {
 		log.Info().Msg("no new reports found")
 		if m != nil {
 			m.RecordFetchDuration(time.Since(fetchStart))
@@ -365,11 +365,11 @@ func fetchReports(cfg *config.Config, store *storage.Storage, m *metrics.Metrics
 		return nil
 	}
 
-	log.Info().Int("count", len(reports)).Msg("processing reports")
+	log.Info().Int("count", len(result.Reports)).Msg("processing reports")
 
 	// Process each report
 	processed := 0
-	for _, report := range reports {
+	for _, report := range result.Reports {
 		for _, attachment := range report.Attachments {
 			if m != nil {
 				m.AttachmentsTotal.Inc()
@@ -405,6 +405,24 @@ func fetchReports(cfg *config.Config, store *storage.Storage, m *metrics.Metrics
 				Int("messages", feedback.GetTotalMessages()).
 				Msg("saved report")
 			processed++
+		}
+	}
+
+	// Post-processing: mark as seen and/or move messages
+	if len(result.MessageIDs) > 0 {
+		if cfg.IMAP.MarkAsSeen {
+			if err := client.MarkAsSeen(result.MessageIDs); err != nil {
+				log.Error().Err(err).Msg("failed to mark messages as seen")
+			} else {
+				log.Info().Int("count", len(result.MessageIDs)).Msg("marked messages as seen")
+			}
+		}
+		if cfg.IMAP.ProcessedMailbox != "" {
+			if err := client.MoveMessages(result.MessageIDs, cfg.IMAP.ProcessedMailbox); err != nil {
+				log.Error().Err(err).Msg("failed to move messages to processed mailbox")
+			} else {
+				log.Info().Int("count", len(result.MessageIDs)).Str("mailbox", cfg.IMAP.ProcessedMailbox).Msg("moved messages to processed mailbox")
+			}
 		}
 	}
 

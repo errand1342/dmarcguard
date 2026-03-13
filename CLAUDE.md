@@ -310,7 +310,9 @@ Config via JSON file or environment variables (using caarlos0/env):
     "username": "dmarc@example.com",
     "password": "your-password",
     "mailbox": "INBOX",
-    "use_tls": true
+    "use_tls": true,
+    "mark_as_seen": true,
+    "processed_mailbox": ""
   },
   "database": {
     "path": "~/.parse-dmarc/db.sqlite"
@@ -322,7 +324,19 @@ Config via JSON file or environment variables (using caarlos0/env):
 }
 ```
 
-Environment variables: `IMAP_HOST`, `IMAP_PORT`, `IMAP_USERNAME`, `IMAP_PASSWORD`, `IMAP_MAILBOX`, `IMAP_USE_TLS`, `DATABASE_PATH`, `SERVER_HOST`, `SERVER_PORT`
+Environment variables:
+
+- `DATABASE_PATH`
+- `IMAP_HOST`
+- `IMAP_MAILBOX`
+- `IMAP_MARK_AS_SEEN`
+- `IMAP_PASSWORD`
+- `IMAP_PORT`
+- `IMAP_PROCESSED_MAILBOX`
+- `IMAP_USE_TLS`
+- `IMAP_USERNAME`
+- `SERVER_HOST`
+- `SERVER_PORT`
 
 ## Deployment Options
 
