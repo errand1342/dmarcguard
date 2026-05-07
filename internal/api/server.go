@@ -25,6 +25,8 @@ type Server struct {
 	metrics *metrics.Metrics
 	log     *zerolog.Logger
 	addr    string
+	mux     *http.ServeMux
+	authMiddleware func(http.Handler) http.Handler
 }
 
 // NewServer creates a new API server
@@ -34,12 +36,13 @@ func NewServer(store *storage.Storage, host string, port int, m *metrics.Metrics
 		metrics: m,
 		log:     log,
 		addr:    fmt.Sprintf("%s:%d", host, port),
+		mux:      http.NewServeMux(),
 	}
 }
 
 // Start starts the HTTP server
 func (s *Server) Start(ctx context.Context) error {
-	mux := http.NewServeMux()
+	mux := s.mux
 
 	// API routes
 	mux.HandleFunc("/api/reports", s.handleReports)
@@ -85,7 +88,10 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	// Build handler chain: CORS -> Metrics -> Routes
-	var handler http.Handler = mux
+	var handler http.Handler = s.mux
+	if s.authMiddleware != nil {
+		handler = s.authMiddleware(handler)
+	}
 	if s.metrics != nil {
 		handler = s.metrics.HTTPMiddleware(handler)
 	}

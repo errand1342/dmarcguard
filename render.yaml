@@ -10,7 +10,7 @@ services:
       - key: PARSE_DMARC_CONFIG
         value: /app/config.json
       - key: PARSE_DMARC_METRICS
-        value: "true"
+        value: "false"          # disabled – Prometheus scraping not available on free tier
       - key: IMAP_HOST
         sync: false
       - key: IMAP_PORT
@@ -29,9 +29,14 @@ services:
         value: 8080
       - key: FETCH_INTERVAL
         value: 300
+      # ── Auth (set these in the Render dashboard, never commit values) ──
+      - key: AUTH_USERNAME
+        sync: false             # set in Render dashboard
+      - key: AUTH_PASSWORD
+        sync: false             # set in Render dashboard
     healthCheckPath: /api/statistics
     name: parse-dmarc
-    plan: starter
+    plan: free                  # was: starter
     preDeployCommand: echo "Deploying Parse DMARC..."
     region: oregon
     runtime: docker

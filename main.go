@@ -21,6 +21,7 @@ import (
 	"github.com/meysam81/parse-dmarc/internal/storage"
 	"github.com/rs/zerolog"
 	"github.com/urfave/cli/v3"
+	"github.com/meysam81/parse-dmarc/internal/auth"
 )
 
 var (
@@ -267,6 +268,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	defer stop()
 
 	server := api.NewServer(store, cfg.Server.Host, cfg.Server.Port, m, log)
+	server.WithAuth(auth.Middleware, auth.LoginHandler, auth.LogoutHandler)
 	serverErrChan := make(chan error, 1)
 	go func() {
 		serverErrChan <- server.Start(ctx)
