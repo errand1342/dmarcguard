@@ -1,10 +1,10 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import DashboardHero from "./components/dashboard/DashboardHero.vue";
-import RecentReports from "./components/dashboard/RecentReports.vue";
-import ReportDrawer from "./components/dashboard/ReportDrawer.vue";
-import DnsGenerator from "./components/tools/DnsGenerator.vue";
-import SettingsModal from "./components/settings/SettingsModal.vue";
+import DashboardHero from "../components/dashboard/DashboardHero.vue";
+import RecentReports from "../components/dashboard/RecentReports.vue";
+import ReportDrawer from "../components/dashboard/ReportDrawer.vue";
+import DnsGenerator from "../components/tools/DnsGenerator.vue";
+import SettingsModal from "../components/settings/SettingsModal.vue";
 import {
   getStatistics,
   getTopSources,
