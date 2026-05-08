@@ -59,7 +59,7 @@ func (s *Server) Start(ctx context.Context) error {
 	// Try to serve embedded files, fallback to nothing if not embedded
 	distFiles, err := fs.Sub(distFS, "dist")
 	if err == nil {
-		mux.Handle("/", http.FileServer(http.FS(distFiles)))
+		mux.Handle("/", newSPAHandler(distFiles))
 	} else {
 		// If dist folder is not embedded, serve a simple message
 		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
