@@ -16,8 +16,8 @@ import (
 // spaHandler wraps a file system and serves index.html for any path that
 // doesn't resolve to a real file, so Vue Router can handle the route.
 type spaHandler struct {
-	fs   fs.FS          // the embedded or OS file system
-	base http.Handler   // the underlying http.FileServer
+	fs   fs.FS        // the embedded or OS file system
+	base http.Handler // the underlying http.FileServer
 }
 
 // newSPAHandler constructs a handler for the given file system.

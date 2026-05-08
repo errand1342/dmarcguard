@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -76,8 +77,11 @@ func Middleware(next http.Handler) http.Handler {
 			return
 		}
 		// Allow static login assets so the page can load
-		if r.URL.Path == "/login" || r.URL.Path == "/api/login" || r.URL.Path == "/api/logout" {
-			next.ServeHTTP(w, r)
+	if r.URL.Path == "/login" ||
+		r.URL.Path == "/api/login" ||
+		r.URL.Path == "/api/logout" ||
+		strings.HasPrefix(r.URL.Path, "/assets/") ||
+		r.URL.Path == "/favicon.ico" {
 			return
 		}
 
