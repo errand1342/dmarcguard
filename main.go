@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/meysam81/parse-dmarc/internal/api"
+	"github.com/meysam81/parse-dmarc/internal/auth"
 	"github.com/meysam81/parse-dmarc/internal/config"
+	"github.com/meysam81/parse-dmarc/internal/graph"
 	"github.com/meysam81/parse-dmarc/internal/imap"
 	"github.com/meysam81/parse-dmarc/internal/logger"
 	mcpserver "github.com/meysam81/parse-dmarc/internal/mcp"
@@ -21,7 +23,6 @@ import (
 	"github.com/meysam81/parse-dmarc/internal/storage"
 	"github.com/rs/zerolog"
 	"github.com/urfave/cli/v3"
-	"github.com/meysam81/parse-dmarc/internal/auth"
 )
 
 var (
@@ -335,15 +336,96 @@ func fetchReports(cfg *config.Config, store *storage.Storage, m *metrics.Metrics
 		m.FetchCyclesTotal.Inc()
 	}
 
+	var reports [][]byte
+	var err error
+
+	// Check if Graph is enabled, otherwise use IMAP
+	if cfg.Graph.Enabled {
+		reports, err = fetchReportsViaGraph(cfg, m)
+	} else {
+		reports, err = fetchReportsViaIMAP(cfg, m)
+	}
+
+	if err != nil {
+		if m != nil {
+			m.FetchErrors.Inc()
+		}
+		return err
+	}
+
+	if m != nil {
+		m.ReportsFetched.Add(float64(len(reports)))
+	}
+
+	if len(reports) == 0 {
+		log.Info().Msg("no new reports found")
+		if m != nil {
+			m.RecordFetchDuration(time.Since(fetchStart))
+			m.LastFetchTimestamp.SetToCurrentTime()
+		}
+		return nil
+	}
+
+	log.Info().Int("count", len(reports)).Msg("processing reports")
+
+	// Process each report
+	processed := 0
+	for _, reportData := range reports {
+		if m != nil {
+			m.AttachmentsTotal.Inc()
+		}
+
+		feedback, err := parser.ParseReport(reportData)
+		if err != nil {
+			log.Warn().Err(err).Msg("failed to parse report")
+			if m != nil {
+				m.ReportParseErrors.Inc()
+			}
+			continue
+		}
+		if m != nil {
+			m.ReportsParsed.Inc()
+		}
+
+		if err := store.SaveReport(feedback); err != nil {
+			log.Error().Err(err).Str("report_id", feedback.ReportMetadata.ReportID).Msg("failed to save report")
+			if m != nil {
+				m.ReportStoreErrors.Inc()
+			}
+			continue
+		}
+		if m != nil {
+			m.ReportsStored.Inc()
+		}
+
+		log.Info().
+			Str("report_id", feedback.ReportMetadata.ReportID).
+			Str("org", feedback.ReportMetadata.OrgName).
+			Str("domain", feedback.PolicyPublished.Domain).
+			Int("messages", feedback.GetTotalMessages()).
+			Msg("saved report")
+		processed++
+	}
+
+	if m != nil {
+		m.RecordFetchDuration(time.Since(fetchStart))
+		m.LastFetchTimestamp.SetToCurrentTime()
+	}
+
+	log.Info().Int("count", processed).Msg("reports processed")
+	return nil
+}
+
+// fetchReportsViaIMAP fetches reports using IMAP
+func fetchReportsViaIMAP(cfg *config.Config, m *metrics.Metrics) ([][]byte, error) {
 	// Create IMAP client
 	connectStart := time.Now()
 	client := imap.NewClient(&cfg.IMAP, log)
 	if err := client.Connect(); err != nil {
 		if m != nil {
 			m.RecordIMAPConnection(false, time.Since(connectStart))
-			m.FetchErrors.Inc()
 		}
-		return fmt.Errorf("connect to IMAP server: %w", err)
+		return nil, fmt.Errorf("connect to IMAP server: %w", err)
 	}
 	if m != nil {
 		m.RecordIMAPConnection(true, time.Since(connectStart))
@@ -353,65 +435,13 @@ func fetchReports(cfg *config.Config, store *storage.Storage, m *metrics.Metrics
 	// Fetch reports
 	result, err := client.FetchDMARCReports()
 	if err != nil {
-		if m != nil {
-			m.FetchErrors.Inc()
-		}
-		return fmt.Errorf("fetch DMARC reports: %w", err)
+		return nil, fmt.Errorf("fetch DMARC reports: %w", err)
 	}
 
-	if m != nil {
-		m.ReportsFetched.Add(float64(len(result.Reports)))
-	}
-
-	if len(result.Reports) == 0 {
-		log.Info().Msg("no new reports found")
-		if m != nil {
-			m.RecordFetchDuration(time.Since(fetchStart))
-			m.LastFetchTimestamp.SetToCurrentTime()
-		}
-		return nil
-	}
-
-	log.Info().Int("count", len(result.Reports)).Msg("processing reports")
-
-	// Process each report
-	processed := 0
+	var reports [][]byte
 	for _, report := range result.Reports {
 		for _, attachment := range report.Attachments {
-			if m != nil {
-				m.AttachmentsTotal.Inc()
-			}
-
-			feedback, err := parser.ParseReport(attachment.Data)
-			if err != nil {
-				log.Warn().Err(err).Str("filename", attachment.Filename).Msg("failed to parse report")
-				if m != nil {
-					m.ReportParseErrors.Inc()
-				}
-				continue
-			}
-			if m != nil {
-				m.ReportsParsed.Inc()
-			}
-
-			if err := store.SaveReport(feedback); err != nil {
-				log.Error().Err(err).Str("report_id", feedback.ReportMetadata.ReportID).Msg("failed to save report")
-				if m != nil {
-					m.ReportStoreErrors.Inc()
-				}
-				continue
-			}
-			if m != nil {
-				m.ReportsStored.Inc()
-			}
-
-			log.Info().
-				Str("report_id", feedback.ReportMetadata.ReportID).
-				Str("org", feedback.ReportMetadata.OrgName).
-				Str("domain", feedback.PolicyPublished.Domain).
-				Int("messages", feedback.GetTotalMessages()).
-				Msg("saved report")
-			processed++
+			reports = append(reports, attachment.Data)
 		}
 	}
 
@@ -433,13 +463,24 @@ func fetchReports(cfg *config.Config, store *storage.Storage, m *metrics.Metrics
 		}
 	}
 
-	if m != nil {
-		m.RecordFetchDuration(time.Since(fetchStart))
-		m.LastFetchTimestamp.SetToCurrentTime()
+	return reports, nil
+}
+
+// fetchReportsViaGraph fetches reports using Microsoft Graph API
+func fetchReportsViaGraph(cfg *config.Config, m *metrics.Metrics) ([][]byte, error) {
+	// Create Graph client
+	client, err := graph.NewClient(&cfg.Graph, log)
+	if err != nil {
+		return nil, fmt.Errorf("create Graph client: %w", err)
 	}
 
-	log.Info().Int("count", processed).Msg("reports processed")
-	return nil
+	// Fetch reports
+	reports, err := client.FetchReports()
+	if err != nil {
+		return nil, fmt.Errorf("fetch reports via Graph: %w", err)
+	}
+
+	return reports, nil
 }
 
 func runMCPServer(ctx context.Context, store *storage.Storage, httpAddr string, oauthCfg *oauth.Config) error {

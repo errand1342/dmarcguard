@@ -24,8 +24,22 @@ type Config struct {
 	LogLevel    string         `json:"log_level" env:"LOG_LEVEL" envDefault:"info"`
 	ColoredLogs bool           `json:"colored_logs" env:"COLORED_LOGS" envDefault:"false"`
 	IMAP        IMAPConfig     `json:"imap"`
+	Graph       GraphConfig    `json:"graph"`
 	Database    DatabaseConfig `json:"database"`
 	Server      ServerConfig   `json:"server"`
+}
+
+// GraphConfig holds Microsoft Graph API configuration
+type GraphConfig struct {
+	Enabled      bool   `json:"enabled" env:"GRAPH_ENABLED" envDefault:"false"`
+	TenantID     string `json:"tenant_id" env:"GRAPH_TENANT_ID"`
+	ClientID     string `json:"client_id" env:"GRAPH_CLIENT_ID"`
+	ClientSecret string `json:"client_secret" env:"GRAPH_CLIENT_SECRET"`
+	CertPath     string `json:"cert_path" env:"GRAPH_CERT_PATH"`
+	CertKeyPath  string `json:"cert_key_path" env:"GRAPH_CERT_KEY_PATH"`
+	Mailbox      string `json:"mailbox" env:"GRAPH_MAILBOX"`
+	FolderPath   string `json:"folder_path" env:"GRAPH_FOLDER_PATH" envDefault:"INBOX"`
+	MarkAsRead   bool   `json:"mark_as_read" env:"GRAPH_MARK_AS_READ" envDefault:"true"`
 }
 
 // IMAPConfig holds IMAP server configuration
@@ -123,9 +137,27 @@ func Load(path string) (*Config, error) {
 }
 
 // Validate checks that all required configuration values are set.
-// Required fields: IMAP host, username, and password.
+// Either IMAP (host, username, password) or Graph (tenant_id, client_id, client_secret/cert, mailbox) must be configured.
 // Returns nil if valid, or an error describing the missing configuration.
 func (c *Config) Validate() error {
+	// Check if Graph is enabled
+	if c.Graph.Enabled {
+		if c.Graph.TenantID == "" {
+			return errors.New("GRAPH_TENANT_ID is required when Graph is enabled")
+		}
+		if c.Graph.ClientID == "" {
+			return errors.New("GRAPH_CLIENT_ID is required when Graph is enabled")
+		}
+		if c.Graph.ClientSecret == "" && (c.Graph.CertPath == "" || c.Graph.CertKeyPath == "") {
+			return errors.New("GRAPH_CLIENT_SECRET or GRAPH_CERT_PATH/GRAPH_CERT_KEY_PATH is required when Graph is enabled")
+		}
+		if c.Graph.Mailbox == "" {
+			return errors.New("GRAPH_MAILBOX is required when Graph is enabled")
+		}
+		return nil
+	}
+
+	// Otherwise, IMAP must be configured
 	if c.IMAP.Host == "" {
 		return ErrMissingIMAPHost
 	}
