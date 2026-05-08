@@ -55,7 +55,7 @@ Thumbs.db
 
 data
 tmp
-dist
+#dist
 parse-dmarc
 parse-dmarc.1
 .secrets/
