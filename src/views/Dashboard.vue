@@ -10,9 +10,9 @@ import {
   getTopSources,
   getReports,
   getReportById,
-} from "./lib/api.js";
-import { useThemeStore } from "./stores";
-import "./assets/base.css";
+} from "../lib/api.js";
+import { useThemeStore } from "../stores";
+import "../assets/base.css";
 import { useRouter } from "vue-router";
 
 //Router
