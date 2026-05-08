@@ -42,6 +42,12 @@ func (h *spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Never fall back to index.html for assets – let 404 be returned instead
+	if strings.HasPrefix(r.URL.Path, "/assets/") {
+		h.base.ServeHTTP(w, r)
+		return
+	}
+
 	// Try to open the requested path in the embedded FS.
 	// If it exists (JS bundle, CSS, favicon, etc.) serve it directly.
 	f, err := h.fs.Open(strings.TrimPrefix(r.URL.Path, "/"))
