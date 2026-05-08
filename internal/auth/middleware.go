@@ -82,12 +82,7 @@ func Middleware(next http.Handler) http.Handler {
 		r.URL.Path == "/api/logout" ||
 		strings.HasPrefix(r.URL.Path, "/assets/") ||
 		r.URL.Path == "/favicon.ico" {
-			return
-		}
-
-		// If auth is not configured, pass through
-		if os.Getenv("AUTH_USERNAME") == "" && os.Getenv("AUTH_PASSWORD") == "" {
-			next.ServeHTTP(w, r)
+		next.ServeHTTP(w, r)
 			return
 		}
 
