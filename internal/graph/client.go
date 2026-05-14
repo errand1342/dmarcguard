@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -91,12 +92,13 @@ func (c *Client) FetchReports() ([][]byte, error) {
 	}
 
 	// Query for unread messages with attachments (potential DMARC reports)
-	filter := "$filter=isRead eq false and hasAttachments eq true"
-	orderBy := "$orderby=receivedDateTime desc"
-	top := "$top=50"
+	params := url.Values{}
+	params.Set("$filter", "isRead eq false and hasAttachments eq true")
+	params.Set("$orderby", "receivedDateTime desc")
+	params.Set("$top", "50")
 
-	query := fmt.Sprintf("/users/%s/mailFolders/%s/messages?%s&%s&%s",
-		c.cfg.Mailbox, folderID, filter, orderBy, top)
+	query := fmt.Sprintf("/users/%s/mailFolders/%s/messages?%s",
+		url.PathEscape(c.cfg.Mailbox), url.PathEscape(folderID), params.Encode())
 
 	respBody, err := c.auth.MakeRequest("GET", query, nil)
 	if err != nil {
@@ -162,7 +164,11 @@ func (c *Client) getFolderID(folderPath string) (string, error) {
 	}
 
 	// Otherwise, search for the folder by name
-	query := fmt.Sprintf(`/users/%s/mailFolders?$filter=displayName eq '%s'`, c.cfg.Mailbox, folderPath)
+	params := url.Values{}
+	params.Set("$filter", fmt.Sprintf("displayName eq '%s'", folderPath))
+
+	query := fmt.Sprintf("/users/%s/mailFolders?%s",
+		url.PathEscape(c.cfg.Mailbox), params.Encode())
 
 	respBody, err := c.auth.MakeRequest("GET", query, nil)
 	if err != nil {
@@ -188,7 +194,7 @@ func (c *Client) getFolderID(folderPath string) (string, error) {
 
 // getMessageWithAttachments fetches a message with all details and attachments
 func (c *Client) getMessageWithAttachments(messageID string) (*Message, error) {
-	query := fmt.Sprintf("/users/%s/messages/%s", c.cfg.Mailbox, messageID)
+	query := fmt.Sprintf("/users/%s/messages/%s", url.PathEscape(c.cfg.Mailbox), url.PathEscape(messageID))
 
 	respBody, err := c.auth.MakeRequest("GET", query, nil)
 	if err != nil {
@@ -202,7 +208,7 @@ func (c *Client) getMessageWithAttachments(messageID string) (*Message, error) {
 
 	// If it has attachments, fetch them
 	if msg.HasAttachments {
-		attachmentQuery := fmt.Sprintf("/users/%s/messages/%s/attachments", c.cfg.Mailbox, messageID)
+		attachmentQuery := fmt.Sprintf("/users/%s/messages/%s/attachments", url.PathEscape(c.cfg.Mailbox), url.PathEscape(messageID))
 		attachResp, err := c.auth.MakeRequest("GET", attachmentQuery, nil)
 		if err != nil {
 			c.log.Error().Err(err).Str("msg_id", messageID).Msg("failed to fetch attachments")
