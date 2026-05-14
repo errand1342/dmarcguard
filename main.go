@@ -200,11 +200,17 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	// Reinitialize logger with config-derived level
 	log = logger.NewLogger(cfg.LogLevel, !cfg.ColoredLogs)
 
-	// Validate required IMAP configuration when fetching is enabled
+	// Validate required configuration when fetching is enabled
 	// (not serve-only and not MCP mode)
 	if !serveOnly && !mcpMode && mcpHTTPAddr == "" {
-		if err := cfg.Validate(); err != nil {
-			return fmt.Errorf("configuration error: %w", err)
+		if cfg.Graph.Enabled {
+			if err := cfg.Graph.ValidateGraph(); err != nil {
+				return fmt.Errorf("Graph configuration error: %w", err)
+			}
+		} else {
+			if err := cfg.Validate(); err != nil {
+				return fmt.Errorf("IMAP configuration error: %w", err)
+			}
 		}
 	}
 

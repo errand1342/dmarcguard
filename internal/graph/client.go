@@ -13,15 +13,15 @@ import (
 
 // Message represents a Microsoft Graph mail message
 type Message struct {
-	ID               string        `json:"id"`
-	Subject          string        `json:"subject"`
-	From             From          `json:"from"`
-	ReceivedDateTime time.Time     `json:"receivedDateTime"`
-	IsRead           bool          `json:"isRead"`
-	HasAttachments   bool          `json:"hasAttachments"`
-	BodyPreview      string        `json:"bodyPreview"`
-	Body             ItemBody      `json:"body"`
-	Attachments      []Attachment  `json:"attachments,omitempty"`
+	ID               string       `json:"id"`
+	Subject          string       `json:"subject"`
+	From             From         `json:"from"`
+	ReceivedDateTime time.Time    `json:"receivedDateTime"`
+	IsRead           bool         `json:"isRead"`
+	HasAttachments   bool         `json:"hasAttachments"`
+	BodyPreview      string       `json:"bodyPreview"`
+	Body             ItemBody     `json:"body"`
+	Attachments      []Attachment `json:"attachments,omitempty"`
 }
 
 type From struct {
@@ -55,10 +55,10 @@ type MessagePage struct {
 
 // Client implements email fetching via Microsoft Graph API
 type Client struct {
-	cfg    *Config
-	auth   *Authenticator
-	log    *zerolog.Logger
-	mu     sync.Mutex
+	cfg  *Config
+	auth *Authenticator
+	log  *zerolog.Logger
+	mu   sync.Mutex
 }
 
 // NewClient creates a new Microsoft Graph client
@@ -67,7 +67,7 @@ func NewClient(cfg *Config, log *zerolog.Logger) (*Client, error) {
 		return nil, NewClientError("Graph API is not enabled")
 	}
 
-	if err := cfg.Validate(); err != nil {
+	if err := cfg.ValidateGraph(); err != nil {
 		return nil, err
 	}
 
