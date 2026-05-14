@@ -93,8 +93,7 @@ func (c *Client) FetchReports() ([][]byte, error) {
 
 	// Query for unread messages with attachments (potential DMARC reports)
 	params := url.Values{}
-	params.Set("$filter", "isRead eq false and hasAttachments eq true")
-	params.Set("$orderby", "receivedDateTime desc")
+	params.Set("$filter", "hasAttachments eq true")
 	params.Set("$top", "50")
 
 	query := fmt.Sprintf("/users/%s/mailFolders/%s/messages?%s",
@@ -113,6 +112,11 @@ func (c *Client) FetchReports() ([][]byte, error) {
 	var reports [][]byte
 
 	for _, msg := range page.Value {
+		// Skip already read messages to avoid reprocessing
+		if msg.IsRead {
+			continue
+		}
+
 		c.log.Debug().
 			Str("msg_id", msg.ID).
 			Str("subject", msg.Subject).
