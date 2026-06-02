@@ -10,7 +10,7 @@ RUN set -eux; \
         fontconfig \
         libfontconfig1 \
         libcairo2 \
-        libpango1.0-0 \
+        libpango-1.0-0 \
         libjpeg-dev \
         libpng-dev \
     ; \
