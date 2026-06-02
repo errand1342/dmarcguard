@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1
 FROM oven/bun:1 AS frontend-builder
 
-<<<<<<< HEAD
 # Install system dependencies needed for SVG processing (portable names + retries)
 RUN set -eux; \
     export DEBIAN_FRONTEND=noninteractive; \
@@ -17,8 +16,6 @@ RUN set -eux; \
     ; \
     rm -rf /var/lib/apt/lists/*
 
-=======
->>>>>>> parent of 0477152 (Shift to Graph)
 WORKDIR /build/frontend
 
 RUN --mount=type=bind,source=package.json,target=package.json \
