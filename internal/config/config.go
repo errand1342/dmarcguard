@@ -190,6 +190,17 @@ func Load(path string) (*Config, error) {
 		cfg.Server.Port = 8080
 	}
 
+	// Auto-enable Graph if sufficient Graph configuration is provided.
+	// This makes the application prefer Graph over IMAP when Graph creds
+	// are present in env or the config file, without requiring the
+	// explicit "enabled" flag.
+	if cfg.Graph.TenantID != "" && cfg.Graph.ClientID != "" {
+		hasAuth := cfg.Graph.ClientSecret != "" || (cfg.Graph.CertPath != "" && cfg.Graph.CertKeyPath != "")
+		if hasAuth {
+			cfg.Graph.Enabled = true
+		}
+	}
+
 	return &cfg, nil
 }
 

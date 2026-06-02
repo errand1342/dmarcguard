@@ -1,6 +1,21 @@
 # syntax=docker/dockerfile:1
 FROM oven/bun:1 AS frontend-builder
 
+# Install system dependencies needed for SVG processing
+RUN apt-get update && apt-get install -y \
+    fontconfig \
+    libfontconfig1 \
+    libfontconfig1-dev \
+    libcairo2 \
+    libcairo2-dev \
+    libpango1.0-0 \
+    libpango1.0-dev \
+    libjpeg62-turbo \
+    libjpeg62-turbo-dev \
+    libpng16-16 \
+    libpng-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /build/frontend
 
 RUN --mount=type=bind,source=package.json,target=package.json \
