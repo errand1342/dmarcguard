@@ -91,10 +91,11 @@ func (c *Client) FetchReports() ([][]byte, error) {
 		return nil, fmt.Errorf("failed to get folder ID: %w", err)
 	}
 
-	// Query for unread messages with attachments (potential DMARC reports)
+	// Query for unread messages and filter attachments locally.
+	// Some Graph endpoints reject complex server-side restrictions.
 	params := url.Values{}
-	params.Set("$filter", "isRead eq false and hasAttachments eq true")
-	params.Set("$orderby", "receivedDateTime desc")
+	params.Set("$filter", "isRead eq false")
+	params.Set("$select", "id,subject,from,receivedDateTime,isRead,hasAttachments")
 	params.Set("$top", "50")
 
 	query := fmt.Sprintf("/users/%s/mailFolders/%s/messages?%s",
@@ -113,6 +114,11 @@ func (c *Client) FetchReports() ([][]byte, error) {
 	var reports [][]byte
 
 	for _, msg := range page.Value {
+		if !msg.HasAttachments {
+			c.log.Debug().Str("msg_id", msg.ID).Str("subject", msg.Subject).Msg("skipping message with no attachments")
+			continue
+		}
+
 		c.log.Debug().
 			Str("msg_id", msg.ID).
 			Str("subject", msg.Subject).
